@@ -1,24 +1,22 @@
-
-
 let fileData = [];
 
 type NodeData = {
-  id: string
-  name: string,
-  type: string,
-  children: Node[],
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  fills: any
-}
+  id: string;
+  name: string;
+  type: string;
+  children: Node[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fills: any;
+};
 
 const signatures = {
   R0lGODdh: "image/gif",
   R0lGODlh: "image/gif",
   iVBORw0KGgo: "image/png",
-  "/9j/": "image/jpg"
+  "/9j/": "image/jpg",
 };
 
 function detectMimeType(b64) {
@@ -30,12 +28,12 @@ function detectMimeType(b64) {
 }
 
 function traverse(node): NodeData {
-  let children:any[] = [];
+  let children: any[] = [];
 
   if ("children" in node) {
     if (node.type !== "INSTANCE") {
       for (const child of node.children) {
-        children.push (traverse(child))
+        children.push(traverse(child));
       }
     }
   }
@@ -49,29 +47,40 @@ function traverse(node): NodeData {
     y: node.y,
     width: node.width,
     height: node.height,
-    fills: node.fills === figma.mixed ? [] : node.fills //TODO: Support mixed fills
-  }
+    fills: node.fills === figma.mixed ? [] : node.fills, //TODO: Support mixed fills
+  };
 
-  if (node.fills && Array.isArray(node.fills)){
-
+  if (node.fills && Array.isArray(node.fills)) {
     // Find any fill of type image
-    const imageFill = node.fills.find(fill => fill.type === "IMAGE");
+    const imageFill = node.fills.find((fill) => fill.type === "IMAGE");
     if (imageFill) {
       // An "image" in Figma is a shape with one or more image fills, potentially blended with other fill
       // types.  Given the complexity of mirroring this exactly in Penpot, which treats images as first-class
       // objects, we're going to simplify this by exporting this shape as a PNG image.
-      node.exportAsync({format: "PNG"}).then((value) => {
+      node.exportAsync({ format: "PNG" }).then((value) => {
         const b64 = figma.base64Encode(value);
-        figma.ui.postMessage({type: "IMAGE", data: {
-          id: node.id,
-          value: "data:" + detectMimeType(b64) + ";base64," + b64
-        }});
+        figma.ui.postMessage({
+          type: "IMAGE",
+          data: {
+            id: node.id,
+            value: "data:" + detectMimeType(b64) + ";base64," + b64,
+          },
+        });
       });
     }
   }
 
   if (node.type == "TEXT") {
-    const styledTextSegments = node.getStyledTextSegments(["fontName", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textCase", "textDecoration", "fills"]);
+    const styledTextSegments = node.getStyledTextSegments([
+      "fontName",
+      "fontSize",
+      "fontWeight",
+      "lineHeight",
+      "letterSpacing",
+      "textCase",
+      "textDecoration",
+      "fills",
+    ]);
 
     if (styledTextSegments[0]) {
       let font = {
@@ -86,9 +95,9 @@ function traverse(node): NodeData {
         textDecoration: styledTextSegments[0].textDecoration,
         textAlignHorizontal: node.textAlignHorizontal,
         textAlignVertical: node.textAlignVertical,
-        children: styledTextSegments
+        children: styledTextSegments,
       };
-      result = {...result, ...font};
+      result = { ...result, ...font };
     }
   }
 
@@ -97,8 +106,8 @@ function traverse(node): NodeData {
 
 figma.showUI(__html__, { themeColors: true, height: 200, width: 300 });
 
-let root: NodeData = traverse(figma.root) // start the traversal at the root
-figma.ui.postMessage({type: "FIGMAFILE", data: root});
+let root: NodeData = traverse(figma.root); // start the traversal at the root
+figma.ui.postMessage({ type: "FIGMAFILE", data: root });
 
 figma.ui.onmessage = (msg) => {
   if (msg.type === "cancel") {
@@ -108,5 +117,4 @@ figma.ui.onmessage = (msg) => {
   if (msg.type === "resize") {
     figma.ui.resize(msg.width, msg.height);
   }
-
 };
