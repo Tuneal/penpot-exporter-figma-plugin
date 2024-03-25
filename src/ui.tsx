@@ -64,6 +64,38 @@ export default class PenpotExporter extends React.Component<
     return "#" + (0x1000000 + rgb).toString(16).slice(1);
   };
 
+  getStrokeAlignment = (alignment: NodeData["strokeAlign"]) => {
+    switch (alignment) {
+      case "CENTER":
+        return Symbol.for("center");
+      case "INSIDE":
+        return Symbol.for("inner");
+      case "OUTSIDE":
+        return Symbol.for("outer");
+    }
+  };
+
+  getCornerRadius = (node: NodeData) => {
+    const cornerRadius = node.cornerRadius;
+    if (!cornerRadius) return {};
+
+    if (Array.isArray(node.cornerRadius)) {
+      return {
+        r1: cornerRadius[0],
+        r2: cornerRadius[1],
+        r3: cornerRadius[2],
+        r4: cornerRadius[3],
+      };
+    } else {
+      return {
+        r1: cornerRadius,
+        r2: cornerRadius,
+        r3: cornerRadius,
+        r4: cornerRadius,
+      };
+    }
+  };
+
   translateSolidFill(fill) {
     return {
       fillColor: this.rgbToHex(fill.color),
@@ -131,6 +163,93 @@ export default class PenpotExporter extends React.Component<
     return penpotFills;
   }
 
+  translateSolidStroke(stroke) {
+    return {
+      strokeColor: this.rgbToHex(stroke.color),
+      strokeOpacity: stroke.opacity,
+    };
+  }
+
+  translateGradientLinearStroke(stroke, width, height) {
+    const points = extractLinearGradientParamsFromTransform(
+      width,
+      height,
+      stroke.gradientTransform
+    );
+    return {
+      strokeColorGradient: {
+        type: Symbol.for("linear"),
+        width: 1,
+        startX: points.start[0] / width,
+        startY: points.start[1] / height,
+        endX: points.end[0] / width,
+        endY: points.end[1] / height,
+        stops: [
+          {
+            color: this.rgbToHex(stroke.gradientStops[0].color),
+            offset: stroke.gradientStops[0].position,
+            opacity: stroke.gradientStops[0].color.a * stroke.opacity,
+          },
+          {
+            color: this.rgbToHex(stroke.gradientStops[1].color),
+            offset: stroke.gradientStops[1].position,
+            opacity: stroke.gradientStops[1].color.a * stroke.opacity,
+          },
+        ],
+      },
+    };
+  }
+
+  translateStroke(stroke, width, height) {
+    if (stroke.type === "SOLID") {
+      return this.translateSolidStroke(stroke);
+    } else if (stroke.type === "GRADIENT_LINEAR") {
+      return this.translateGradientLinearStroke(stroke, width, height);
+    } else {
+      console.error("Stroke color type " + stroke.type + " not supported yet");
+      return null;
+    }
+  }
+
+  translateStrokes(
+    strokes,
+    width,
+    height,
+    strokeWeight,
+    strokeAlign,
+    dashPattern
+  ) {
+    if (!strokes) return [];
+
+    let penpotStrokes = [];
+    let penpotStroke = null;
+    for (var stroke of strokes) {
+      penpotStroke = this.translateStroke(stroke, width, height);
+
+      // Penpot does not track Stroke visibility, so if the Figma Stroke is invisible we
+      // force opacity to 0
+      if (stroke.visible === false) {
+        penpotStroke.strokeOpacity = 0;
+      }
+
+      if (penpotStroke !== null) {
+        if (!Array.isArray(strokeWeight)) {
+          penpotStroke = {
+            ...penpotStroke,
+            strokeWidth: strokeWeight,
+            strokeAlignment: this.getStrokeAlignment(strokeAlign),
+            strokeStyle:
+              dashPattern.length > 0
+                ? Symbol.for("dashed")
+                : Symbol.for("solid"),
+          };
+          penpotStrokes.unshift(penpotStroke);
+        }
+      }
+    }
+    return penpotStrokes;
+  }
+
   addFontWarning(font) {
     const newMissingFonts = this.state.missingFonts;
     newMissingFonts.add(font);
@@ -154,6 +273,16 @@ export default class PenpotExporter extends React.Component<
       width: node.width,
       height: node.height,
       fills: this.translateFills(node.fills, node.width, node.height),
+      opacity: node.opacity,
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
+      ...this.getCornerRadius(node),
     });
     for (var child of node.children) {
       this.createPenpotItem(file, child, node.x + baseX, node.y + baseY);
@@ -162,7 +291,9 @@ export default class PenpotExporter extends React.Component<
   }
 
   createPenpotGroup(file, node, baseX, baseY) {
-    file.addGroup({ name: node.name });
+    file.addGroup({
+      name: node.name,
+    });
     for (var child of node.children) {
       this.createPenpotItem(file, child, baseX, baseY);
     }
@@ -177,6 +308,16 @@ export default class PenpotExporter extends React.Component<
       width: node.width,
       height: node.height,
       fills: this.translateFills(node.fills, node.width, node.height),
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
+      ...this.getCornerRadius(node),
+      opacity: node.opacity,
     });
   }
 
@@ -219,6 +360,16 @@ export default class PenpotExporter extends React.Component<
       width: node.width,
       height: node.height,
       fills: this.translateFills(node.fills, node.width, node.height),
+      opacity: node.opacity,
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
+      ...this.getCornerRadius(node),
     });
   }
 
@@ -309,6 +460,16 @@ export default class PenpotExporter extends React.Component<
       height: node.height,
       rotation: 0,
       type: Symbol.for("text"),
+      opacity: node.opacity,
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
+      ...this.getCornerRadius(node),
       content: {
         type: "root",
         verticalAlign: this.translateVerticalAlign(node.textAlignVertical),
@@ -352,6 +513,7 @@ export default class PenpotExporter extends React.Component<
         height: image.height,
       },
       dataUri: image.value,
+      opacity: node.opacity,
     });
   }
 
@@ -415,10 +577,11 @@ export default class PenpotExporter extends React.Component<
   createPenpotFile() {
     let node = this.state.figmaRootNode;
     const file = penpot.createFile(node.name);
-    console.log("Children", node.children);
+
     for (var page of node.children) {
       this.createPenpotItem(file, page, 0, 0);
     }
+    console.log("created file", file);
     return file;
   }
 
@@ -441,6 +604,7 @@ export default class PenpotExporter extends React.Component<
 
   onMessage = (event) => {
     if (event.data.pluginMessage.type == "FIGMAFILE") {
+      console.log("file contents", event.data.pluginMessage.data);
       this.setState((state) => ({
         figmaFileData: JSON.stringify(
           event.data.pluginMessage.data,

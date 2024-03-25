@@ -10,6 +10,21 @@ type NodeData = {
   width: number;
   height: number;
   fills: any;
+  strokes: any;
+  cornerRadius: any;
+  strokeWeight: number;
+  strokeAlign: "CENTER" | "INSIDE" | "OUTSIDE";
+  dashPattern: number;
+  opacity: number;
+  minWidth: number;
+  maxWidth: number;
+  minHeight: number;
+  maxHeight: number;
+  layoutAlign: "MIN" | "CENTER" | "MAX" | "STRETCH" | "INHERIT";
+  layoutGrow: number;
+  layoutPositioning: "AUTO" | "ABSOLUTE";
+  layoutSizingHorizontal: "FIXED" | "HUG" | "FILL";
+  layoutSizingVertical: "FIXED" | "HUG" | "FILL";
 };
 
 const signatures = {
@@ -48,6 +63,37 @@ function traverse(node): NodeData {
     width: node.width,
     height: node.height,
     fills: node.fills === figma.mixed ? [] : node.fills, //TODO: Support mixed fills
+    strokes: node.strokes,
+    cornerRadius:
+      node.cornerRadius === figma.mixed
+        ? [
+            node.topLeftRadius,
+            node.topRightRadius,
+            node.bottomLeftRadius,
+            node.bottomRightRadius,
+          ]
+        : node.cornerRadius,
+    strokeWeight:
+      node.strokeWeight === figma.mixed
+        ? [
+            node.strokeTopWeight,
+            node.strokeBottomWeight,
+            node.strokeLeftWeight,
+            node.strokeRightWeight,
+          ]
+        : node.strokeWeight,
+    dashPattern: node.dashPattern,
+    strokeAlign: node.strokeAlign,
+    opacity: node.opacity,
+    minWidth: node.minWidth,
+    maxWidth: node.maxWidth,
+    minHeight: node.minHeight,
+    maxHeight: node.maxHeight,
+    layoutAlign: node.layoutAlign,
+    layoutGrow: node.layoutGrow,
+    layoutPositioning: node.layoutPositioning,
+    layoutSizingHorizontal: node.layoutSizingHorizontal,
+    layoutSizingVertical: node.layoutSizingVertical,
   };
 
   if (node.fills && Array.isArray(node.fills)) {
