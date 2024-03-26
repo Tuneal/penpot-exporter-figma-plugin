@@ -1,10 +1,10 @@
+import { extractLinearGradientParamsFromTransform } from "@figma-plugin/helpers";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import slugify from "slugify";
 import * as penpot from "./penpot.js";
 import "./ui.css";
-
-import { extractLinearGradientParamsFromTransform } from "@figma-plugin/helpers";
-import slugify from "slugify";
+import { getPenpotSegments } from "./utils";
 
 declare function require(path: string): any;
 
@@ -250,6 +250,46 @@ export default class PenpotExporter extends React.Component<
     return penpotStrokes;
   }
 
+  translateEffect(file, effect, width, height) {
+    if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+      return {
+        id: file.toUUID(`#uuid "00000000-0000-0000-0000-000000000000"`),
+        color: {
+          color: this.rgbToHex(effect.color),
+          opacity: effect.color.a,
+        },
+        style:
+          effect.type === "DROP_SHADOW"
+            ? Symbol.for("drop-shadow")
+            : Symbol.for("inner-shadow"),
+        "offset-x": effect.offset.x,
+        "offset-y": effect.offset.y,
+        blur: effect.radius,
+        spread: effect.spread || 0,
+      };
+    } else {
+      console.error("Effect type " + effect.type + " not supported yet");
+      return null;
+    }
+  }
+
+  translateEffects(file, effects, width, height) {
+    if (!effects) return [];
+
+    let penpotShadows = [];
+    let penpotShadow = null;
+    for (var effect of effects) {
+      penpotShadow = this.translateEffect(file, effect, width, height);
+
+      penpotShadow.hidden = !effect.visible;
+
+      if (penpotShadow !== null) {
+        penpotShadows.unshift(penpotShadow);
+      }
+    }
+    return penpotShadows;
+  }
+
   addFontWarning(font) {
     const newMissingFonts = this.state.missingFonts;
     newMissingFonts.add(font);
@@ -293,6 +333,12 @@ export default class PenpotExporter extends React.Component<
   createPenpotGroup(file, node, baseX, baseY) {
     file.addGroup({
       name: node.name,
+      shadow: this.translateEffects(
+        file,
+        node.effects,
+        node.width,
+        node.height
+      ),
     });
     for (var child of node.children) {
       this.createPenpotItem(file, child, baseX, baseY);
@@ -318,6 +364,12 @@ export default class PenpotExporter extends React.Component<
       ),
       ...this.getCornerRadius(node),
       opacity: node.opacity,
+      shadow: this.translateEffects(
+        file,
+        node.effects,
+        node.width,
+        node.height
+      ),
     });
   }
 
@@ -340,8 +392,8 @@ export default class PenpotExporter extends React.Component<
         file,
         {
           ...componentNode,
-          x: node.x,
-          y: node.y,
+          x: node.x + baseX,
+          y: node.y + baseY,
           width: node.width,
           height: node.height,
           id: node.id,
@@ -370,6 +422,42 @@ export default class PenpotExporter extends React.Component<
         node.dashPattern
       ),
       ...this.getCornerRadius(node),
+      shadow: this.translateEffects(
+        file,
+        node.effects,
+        node.width,
+        node.height
+      ),
+    });
+  }
+
+  createPenpotPath(file, node, baseX, baseY) {
+    const x = node.x + baseX;
+    const y = node.y + baseY;
+    file.createPath({
+      name: node.name,
+      x,
+      y,
+      width: node.width,
+      height: node.height,
+      fills: this.translateFills(node.fills, node.width, node.height),
+      type: Symbol.for("path"),
+      center: "hello",
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
+      content: getPenpotSegments(node.vectorPaths, x, y),
+      shadow: this.translateEffects(
+        file,
+        node.effects,
+        node.width,
+        node.height
+      ),
     });
   }
 
@@ -470,6 +558,12 @@ export default class PenpotExporter extends React.Component<
         node.dashPattern
       ),
       ...this.getCornerRadius(node),
+      shadow: this.translateEffects(
+        file,
+        node.effects,
+        node.width,
+        node.height
+      ),
       content: {
         type: "root",
         verticalAlign: this.translateVerticalAlign(node.textAlignVertical),
@@ -571,6 +665,8 @@ export default class PenpotExporter extends React.Component<
       this.createPenpotCircle(file, node, baseX, baseY);
     } else if (node.type == "TEXT") {
       this.createPenpotText(file, node, baseX, baseY);
+    } else if (node.type == "VECTOR") {
+      this.createPenpotPath(file, node, baseX, baseY);
     }
   }
 
@@ -581,7 +677,7 @@ export default class PenpotExporter extends React.Component<
     for (var page of node.children) {
       this.createPenpotItem(file, page, 0, 0);
     }
-    console.log("created file", file);
+
     return file;
   }
 

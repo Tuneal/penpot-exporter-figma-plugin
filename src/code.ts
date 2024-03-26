@@ -15,6 +15,8 @@ type NodeData = {
   strokeWeight: number;
   strokeAlign: "CENTER" | "INSIDE" | "OUTSIDE";
   dashPattern: number;
+  vectorPaths: any;
+  effects: any;
   opacity: number;
   minWidth: number;
   maxWidth: number;
@@ -94,6 +96,8 @@ function traverse(node): NodeData {
     layoutPositioning: node.layoutPositioning,
     layoutSizingHorizontal: node.layoutSizingHorizontal,
     layoutSizingVertical: node.layoutSizingVertical,
+    vectorPaths: node.vectorPaths,
+    effects: node.effects,
   };
 
   if (node.fills && Array.isArray(node.fills)) {
