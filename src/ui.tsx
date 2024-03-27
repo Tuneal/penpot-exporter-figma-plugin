@@ -339,6 +339,15 @@ export default class PenpotExporter extends React.Component<
         node.width,
         node.height
       ),
+
+      strokes: this.translateStrokes(
+        node.strokes,
+        node.width,
+        node.height,
+        node.strokeWeight,
+        node.strokeAlign,
+        node.dashPattern
+      ),
     });
     for (var child of node.children) {
       this.createPenpotItem(file, child, baseX, baseY);
