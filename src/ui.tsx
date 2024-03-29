@@ -85,13 +85,12 @@ export default class PenpotExporter extends React.Component<
         r2: cornerRadius[1],
         r3: cornerRadius[2],
         r4: cornerRadius[3],
+        ry: 0,
       };
     } else {
       return {
-        r1: cornerRadius,
-        r2: cornerRadius,
-        r3: cornerRadius,
-        r4: cornerRadius,
+        ry: cornerRadius,
+        rx: cornerRadius,
       };
     }
   };
