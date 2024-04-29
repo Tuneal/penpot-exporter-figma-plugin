@@ -148,6 +148,9 @@ export default class PenpotExporter extends React.Component<
     let penpotFill = null;
     for (var fill of fills) {
       penpotFill = this.translateFill(fill, width, height);
+      if (!penpotFill) {
+        continue;
+      }
 
       // Penpot does not track fill visibility, so if the Figma fill is invisible we
       // force opacity to 0
@@ -224,6 +227,9 @@ export default class PenpotExporter extends React.Component<
     let penpotStroke = null;
     for (var stroke of strokes) {
       penpotStroke = this.translateStroke(stroke, width, height);
+      if (!penpotStroke) {
+        continue;
+      }
 
       // Penpot does not track Stroke visibility, so if the Figma Stroke is invisible we
       // force opacity to 0
@@ -279,12 +285,13 @@ export default class PenpotExporter extends React.Component<
     let penpotShadow = null;
     for (var effect of effects) {
       penpotShadow = this.translateEffect(file, effect, width, height);
+      if (!penpotShadow) {
+        continue;
+      }
 
       penpotShadow.hidden = !effect.visible;
 
-      if (penpotShadow !== null) {
-        penpotShadows.unshift(penpotShadow);
-      }
+      penpotShadows.unshift(penpotShadow);
     }
     return penpotShadows;
   }
@@ -780,7 +787,7 @@ export default class PenpotExporter extends React.Component<
       <main>
         <header>
           <img src={require("./logo.svg")} />
-          <h2>Penpot Exporter</h2>
+          <h2>Build with English Exporter</h2>
         </header>
         <section>
           <div
@@ -792,9 +799,9 @@ export default class PenpotExporter extends React.Component<
               {this.state.missingFonts.size} non-default font
               {this.state.missingFonts.size > 1 ? "s" : ""}:{" "}
             </div>
-            <small>
+            {/* <small>
               Ensure fonts are installed in Penpot before importing.
-            </small>
+            </small> */}
             <div id="missing-fonts-list">{this.renderFontWarnings()}</div>
           </div>
           <div>

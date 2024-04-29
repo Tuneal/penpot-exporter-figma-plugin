@@ -2,7 +2,7 @@
   "name": "penpot-exporter",
   "id": "1161652283781700708",
   "version": "0.0.1",
-  "description": "Penpot exporter",
+  "description": "Build with English exporter",
   "main": "code.js",
   "scripts": {
     "build": "webpack",
